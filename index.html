@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorLex: Riddle Edition</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-color: #1e293b;
+            --accent-color: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --hint-color: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --tile-bg: #334155;
+            --tile-hover: #475569;
+            --tile-selected: #0284c7;
+            --tile-hint: #d97706;
+            --border-color: #475569;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: var(--panel-color);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-sizing: border-box;
+        }
+
+        header h1 {
+            margin: 0 0 4px 0;
+            font-size: 1.8rem;
+            color: var(--accent-color);
+            text-align: center;
+        }
+
+        .riddle-box {
+            background: rgba(56, 189, 248, 0.1);
+            border-left: 4px solid var(--accent-color);
+            padding: 12px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .riddle-box h3 {
+            margin: 0 0 4px 0;
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .riddle-box p {
+            margin: 0;
+            font-size: 0.95rem;
+            font-style: italic;
+            line-height: 1.3;
+        }
+
+        .target-display {
+            text-align: center;
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            font-weight: bold;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            color: var(--accent-color);
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            aspect-ratio: 1;
+        }
+
+        .tile {
+            background: var(--tile-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.15s ease, background 0.2s;
+        }
+
+        .tile:hover {
+            background: var(--tile-hover);
+            border-color: var(--accent-color);
+        }
+
+        .tile.selected {
+            background: var(--tile-selected);
+            border-color: #bae6fd;
+            transform: scale(0.95);
+        }
+
+        .tile.hinted {
+            background: var(--tile-hint);
+            border-color: #fbbf24;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.95); }
+            to { transform: scale(1.03); }
+        }
+
+        .tile .letter {
+            font-size: 1.7rem;
+            font-weight: bold;
+        }
+
+        .tile .vector {
+            font-size: 0.65rem;
+            color: var(--accent-color);
+            font-family: monospace;
+            margin-top: -2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            background: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 12px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+        }
+
+        button.hint-btn {
+            background: var(--hint-color);
+            color: #0f172a;
+        }
+
+        button.hint-btn:hover {
+            background: #d97706;
+        }
+
+        button.secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        button.secondary:hover {
+            background: var(--tile-hover);
+            color: var(--text-main);
+        }
+
+        .message {
+            text-align: center;
+            min-height: 24px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>VectorLex</h1>
+            <div class="status-bar">
+                <span id="tier-label">Tier 1: Newtonian</span>
+                <span id="words-label">Words Left: 6</span>
+            </div>
+        </header>
+
+        <div class="riddle-box">
+            <h3>Physics Riddle</h3>
+            <p id="riddle-text">Loading riddle...</p>
+        </div>
+
+        <div class="target-display" id="target-display">_ _ _ _ _ _ _ _ _ _</div>
+
+        <div class="grid" id="game-grid"></div>
+
+        <div class="message" id="message-display">Spell valid physics or common words to unlock target letters!</div>
+
+        <div class="controls">
+            <button class="secondary" onclick="clearSelection()">Clear</button>
+            <button class="hint-btn" onclick="useHint()">💡 Hint</button>
+            <button onclick="submitWord()">Submit Word</button>
+        </div>
+    </div>
+
+    <script>
+        const levels = [
+            {
+                tierName: "Tier 1: Newtonian",
+                riddle: "What fundamental principle states that total energy remains constant over time in an isolated system?",
+                target: "CONSERVATION",
+                wordsAllowed: 6,
+                vectors: ["N1", "S1", "E1", "W1"]
+            },
+            {
+                tierName: "Tier 2: Thermodynamic",
+                riddle: "What universal metric measures the degree of disorder or randomness in a closed system?",
+                target: "ENTROPY",
+                wordsAllowed: 6,
+                vectors: ["N1", "S1", "E1", "W1", "NE1"]
+            },
+            {
+                tierName: "Tier 3: Relativistic",
+                riddle: "What four-dimensional continuum bends under the mass-energy weight of massive celestial bodies?",
+                target: "SPACETIME",
+                wordsAllowed: 5,
+                vectors: ["N1", "S1", "E1", "W1", "NE1", "SW1"]
+            },
+            {
+                tierName: "Tier 4: Quantum",
+                riddle: "What fundamental limit bounds our simultaneous precision when measuring position and momentum?",
+                target: "UNCERTAINTY",
+                wordsAllowed: 5,
+                vectors: ["N1", "S1", "E1", "W1", "NE1", "NW1", "SE1", "SW1"]
+            }
+        ];
+
+        const validDictionary = new Set([
+            "CONSERVATION", "ENTROPY", "SPACETIME", "UNCERTAINTY",
+            "AXION", "BOSON", "PHOTON", "FERMION", "HADRON", "LEPTON", "GLUON", "GRAVITON",
+            "NEUTRINO", "MUON", "PION", "TENSOR", "VECTOR", "SCALAR", "MATRIX", "SPIN",
+            "FLUX", "FIELD", "WAVE", "NODE", "LATTICE", "ORBIT", "PLASMA", "KINETIC",
+            "ISOTOPE", "MASS", "FORCE", "MOTION", "LIGHT", "TIME", "SPACE", "GRAVITY",
+            "CHARGE", "CURRENT", "POWER", "HEAT", "WORK", "GAS", "ATOM", "CORE", "STATE",
+            "SPEED", "QUANTA", "QUANTUM", "RAY", "COIN", "STARS", "ACTION", "RATES", "TRAIN",
+            "COVER", "NATION", "DARK", "STAR", "THERMO", "FLUID", "PARTICLE", "QUARK",
+            "SON", "SUN", "VAN", "VIN", "VIA", "SINK", "SCAN", "AXIS", "KIN", "OAT", "NOT",
+            "NET", "TON", "TIN", "PIN", "PEN", "CAN", "CAT", "RAT", "RUN", "RAN", "SET",
+            "SIT", "SAT", "FIT", "FAR", "FAN", "MAN", "MAP", "TAP", "TOP", "POT", "DOT",
+            "ONE", "TWO", "SIX", "TEN", "ION", "ARC", "BAR", "CAR", "OAR", "ROW", "SEA"
+        ]);
+
+        let currentLevelIndex = 0;
+        let wordsLeft = 6;
+        let selectedIndices = [];
+        let hintIndices = [];
+        let gridData = [];
+        let revealedLetters = new Set();
+
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        function getRandomVector(allowedVectors) {
+            return allowedVectors[Math.floor(Math.random() * allowedVectors.length)];
+        }
+
+        function initLevel() {
+            const level = levels[currentLevelIndex];
+            wordsLeft = level.wordsAllowed;
+            selectedIndices = [];
+            hintIndices = [];
+            revealedLetters.clear();
+            
+            document.getElementById('tier-label').textContent = level.tierName;
+            document.getElementById('riddle-text').textContent = level.riddle;
+            document.getElementById('words-label').textContent = `Words Left: ${wordsLeft}`;
+            document.getElementById('message-display').textContent = 'Find valid physics or common words to uncover target letters!';
+
+            updateTargetDisplay();
+
+            gridData = [];
+            let targetChars = level.target.split('');
+            let fillerChars = ["A","E","I","O","U","N","R","S","T","L","C","V","X","K","P"];
+            
+            for (let i = 0; i < 16; i++) {
+                let char = i < targetChars.length ? targetChars[i] : fillerChars[Math.floor(Math.random() * fillerChars.length)];
+                gridData.push({
+                    letter: char,
+                    vector: getRandomVector(level.vectors)
+                });
+            }
+            gridData.sort(() => Math.random() - 0.5);
+            initGridUI();
+        }
+
+        function updateTargetDisplay() {
+            const level = levels[currentLevelIndex];
+            let displayStr = level.target.split('').map(char => revealedLetters.has(char) ? char : '_').join(' ');
+            document.getElementById('target-display').textContent = displayStr;
+        }
+
+        function initGridUI() {
+            const gridEl = document.getElementById('game-grid');
+            gridEl.innerHTML = '';
+            gridData.forEach((tile, index) => {
+                const tileEl = document.createElement('div');
+                let isSelected = selectedIndices.includes(index);
+                let isHinted = hintIndices.includes(index);
+                tileEl.className = `tile ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''}`;
+                tileEl.innerHTML = `
+                    <span class="letter">${tile.letter}</span>
+                    <span class="vector">${tile.vector}</span>
+                `;
+                tileEl.onclick = () => handleTileClick(index);
+                gridEl.appendChild(tileEl);
+            });
+        }
+
+        function handleTileClick(index) {
+            const idx = selectedIndices.indexOf(index);
+            if (idx > -1) {
+                selectedIndices.splice(idx, 1);
+            } else {
+                selectedIndices.push(index);
+            }
+            hintIndices = [];
+            initGridUI();
+        }
+
+        function clearSelection() {
+            selectedIndices = [];
+            hintIndices = [];
+            initGridUI();
+        }
+
+        function useHint() {
+            const level = levels[currentLevelIndex];
+            const msgEl = document.getElementById('message-display');
+
+            const unrevealed = level.target.split('').filter(char => !revealedLetters.has(char));
+            if (unrevealed.length > 0) {
+                const charToReveal = unrevealed[0];
+                revealedLetters.add(charToReveal);
+                updateTargetDisplay();
+                msgEl.style.color = '#f59e0b';
+                msgEl.textContent = `💡 HINT: Revealed the letter "${charToReveal}" in the riddle answer!`;
+                return;
+            }
+
+            msgEl.style.color = '#38bdf8';
+            msgEl.textContent = `💡 All letters revealed! Spell ${level.target} to win!`;
+        }
+
+        function submitWord() {
+            const level = levels[currentLevelIndex];
+            const formedWord = selectedIndices.map(i => gridData[i].letter).join('');
+            const msgEl = document.getElementById('message-display');
+
+            if (formedWord.length < 3) {
+                msgEl.style.color = '#f87171';
+                msgEl.textContent = 'Words must be at least 3 letters long.';
+                return;
+            }
+
+            if (!validDictionary.has(formedWord) && formedWord !== level.target) {
+                msgEl.style.color = '#f87171';
+                msgEl.textContent = `"${formedWord}" is not recognized. Try a standard physics or common word.`;
+                return;
+            }
+
+            wordsLeft--;
+
+            formedWord.split('').forEach(char => {
+                if (level.target.includes(char)) {
+                    revealedLetters.add(char);
+                }
+            });
+
+            updateTargetDisplay();
+
+            const allSolved = level.target.split('').every(char => revealedLetters.has(char));
+
+            if (formedWord === level.target || allSolved) {
+                msgEl.style.color = '#38bdf8';
+                currentLevelIndex++;
+                if (currentLevelIndex < levels.length) {
+                    msgEl.textContent = `🎉 Brilliant! The answer was ${level.target}. Moving to ${levels[currentLevelIndex].tierName}...`;
+                    setTimeout(initLevel, 2500);
+                } else {
+                    msgEl.textContent = '🏆 Outstanding! You conquered all physics riddle tiers!';
+                    document.getElementById('words-label').textContent = 'VICTORY';
+                }
+                selectedIndices = [];
+                initGridUI();
+                return;
+            }
+
+            if (wordsLeft <= 0) {
+                msgEl.style.color = '#f87171';
+                msgEl.textContent = `Game Over! Out of word guesses. The answer was ${level.target}.`;
+                selectedIndices = [];
+                initGridUI();
+                return;
+            }
+
+            msgEl.style.color = '#facc15';
+            msgEl.textContent = `Valid word "${formedWord}"! Clues uncovered & gravity cascade triggered.`;
+
+            applyGravityAndRefill(selectedIndices, level.vectors, level.target);
+            selectedIndices = [];
+            hintIndices = [];
+            initGridUI();
+            document.getElementById('words-label').textContent = `Words Left: ${wordsLeft}`;
+        }
+
+        function applyGravityAndRefill(clearedIndices, allowedVectors, targetWord) {
+            let cols = [[], [], [], []];
+            
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    let idx = r * 4 + c;
+                    if (!clearedIndices.includes(idx)) {
+                        cols[c].push(gridData[idx]);
+                    }
+                }
+            }
+
+            let unrevealedChars = targetWord.split('').filter(char => !revealedLetters.has(char));
+
+            for (let c = 0; c < 4; c++) {
+                while (cols[c].length < 4) {
+                    let nextLetter = unrevealedChars.length > 0 && Math.random() < 0.6 
+                        ? unrevealedChars.shift() 
+                        : alphabet[Math.floor(Math.random() * alphabet.length)];
+
+                    cols[c].unshift({
+                        letter: nextLetter,
+                        vector: getRandomVector(allowedVectors)
+                    });
+                }
+            }
+
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    gridData[r * 4 + c] = cols[c][r];
+                }
+            }
+        }
+
+        initLevel();
+    </script>
+</body>
+</html>
